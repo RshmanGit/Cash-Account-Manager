@@ -108,10 +108,39 @@ export async function POST(request: NextRequest) {
     const title = String(body?.title ?? "").trim();
     const description =
       body?.description == null ? null : String(body.description);
+    const editors = Array.isArray(body?.editors)
+      ? (body.editors as unknown[])
+      : [];
+    const viewers = Array.isArray(body?.viewers)
+      ? (body.viewers as unknown[])
+      : [];
 
     if (!title || title.length < 3 || title.length > 80) {
       return NextResponse.json(
         { error: "Title must be 3-80 characters" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Validate members
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const norm = (arr: unknown[]) =>
+      Array.from(
+        new Set(
+          arr.filter(
+            (v) => typeof v === "string" && uuidRe.test(v as string)
+          ) as string[]
+        )
+      );
+    const editorsClean = norm(editors);
+    const viewersClean = norm(viewers);
+    const overlap = new Set(
+      editorsClean.filter((id) => viewersClean.includes(id))
+    );
+    if (overlap.size > 0) {
+      return NextResponse.json(
+        { error: "A user cannot be both EDITOR and VIEWER" },
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
@@ -133,6 +162,31 @@ export async function POST(request: NextRequest) {
         { error: error.message },
         { status: 500, headers: { "Cache-Control": "no-store" } }
       );
+    }
+
+    // Insert memberships if provided
+    if (data && (editorsClean.length > 0 || viewersClean.length > 0)) {
+      const memberRows = [
+        ...editorsClean.map((uid) => ({
+          account_id: data.id,
+          uid,
+          type: "EDITOR",
+        })),
+        ...viewersClean.map((uid) => ({
+          account_id: data.id,
+          uid,
+          type: "VIEWER",
+        })),
+      ];
+      const { error: memberError } = await admin
+        .from("account-member")
+        .insert(memberRows);
+      if (memberError) {
+        return NextResponse.json(
+          { error: memberError.message },
+          { status: 500, headers: { "Cache-Control": "no-store" } }
+        );
+      }
     }
 
     return NextResponse.json({ data });

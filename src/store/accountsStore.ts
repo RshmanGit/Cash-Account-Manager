@@ -22,12 +22,22 @@ interface AccountsActions {
   fetch: (accessToken?: string, page?: number) => Promise<void>;
   create: (
     accessToken: string,
-    payload: { title: string; description?: string | null }
+    payload: {
+      title: string;
+      description?: string | null;
+      editors?: string[];
+      viewers?: string[];
+    }
   ) => Promise<void>;
   update: (
     accessToken: string,
     id: number,
-    payload: { title?: string; description?: string | null }
+    payload: {
+      title?: string;
+      description?: string | null;
+      editors?: string[];
+      viewers?: string[];
+    }
   ) => Promise<void>;
   remove: (accessToken: string, id: number) => Promise<void>;
   setPage: (n: number) => void;
@@ -104,7 +114,12 @@ export const useAccountsStore = create<AccountsStore>((set, get) => ({
 
   create: async (
     accessToken: string,
-    payload: { title: string; description?: string | null }
+    payload: {
+      title: string;
+      description?: string | null;
+      editors?: string[];
+      viewers?: string[];
+    }
   ) => {
     set({ loading: true, error: null });
     try {
@@ -133,7 +148,12 @@ export const useAccountsStore = create<AccountsStore>((set, get) => ({
   update: async (
     accessToken: string,
     id: number,
-    payload: { title?: string; description?: string | null }
+    payload: {
+      title?: string;
+      description?: string | null;
+      editors?: string[];
+      viewers?: string[];
+    }
   ) => {
     set({ loading: true, error: null });
     try {

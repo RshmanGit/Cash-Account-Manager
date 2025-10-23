@@ -29,7 +29,17 @@ export async function GET(
       { error: error.message },
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
-  return NextResponse.json({ data });
+  // Fetch members for prefill
+  const { data: members, error: membersError } = await admin
+    .from("account-member")
+    .select("uid, type")
+    .eq("account_id", idParam);
+  if (membersError)
+    return NextResponse.json(
+      { error: membersError.message },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
+  return NextResponse.json({ data, members: members ?? [] });
 }
 
 export async function PATCH(
@@ -86,6 +96,70 @@ export async function PATCH(
         { error: error.message },
         { status: 500, headers: { "Cache-Control": "no-store" } }
       );
+    // Replace memberships
+    const editors = Array.isArray(body?.editors)
+      ? (body.editors as unknown[])
+      : [];
+    const viewers = Array.isArray(body?.viewers)
+      ? (body.viewers as unknown[])
+      : [];
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const norm = (arr: unknown[]) =>
+      Array.from(
+        new Set(
+          arr.filter(
+            (v) => typeof v === "string" && uuidRe.test(v as string)
+          ) as string[]
+        )
+      );
+    const editorsClean = norm(editors);
+    const viewersClean = norm(viewers);
+    const overlap = new Set(
+      editorsClean.filter((id) => viewersClean.includes(id))
+    );
+    if (overlap.size > 0) {
+      return NextResponse.json(
+        { error: "A user cannot be both EDITOR and VIEWER" },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Delete existing memberships
+    const { error: delError } = await admin
+      .from("account-member")
+      .delete()
+      .eq("account_id", idParam);
+    if (delError)
+      return NextResponse.json(
+        { error: delError.message },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+
+    // Insert new memberships if any
+    if (editorsClean.length > 0 || viewersClean.length > 0) {
+      const memberRows = [
+        ...editorsClean.map((uid) => ({
+          account_id: Number(idParam),
+          uid,
+          type: "EDITOR",
+        })),
+        ...viewersClean.map((uid) => ({
+          account_id: Number(idParam),
+          uid,
+          type: "VIEWER",
+        })),
+      ];
+      const { error: insError } = await admin
+        .from("account-member")
+        .insert(memberRows);
+      if (insError)
+        return NextResponse.json(
+          { error: insError.message },
+          { status: 500, headers: { "Cache-Control": "no-store" } }
+        );
+    }
+
     return NextResponse.json({ data });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unexpected error";
