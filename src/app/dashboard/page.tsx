@@ -6,10 +6,12 @@ import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { useUsersStore } from '@/store/usersStore'
 
 export default function DashboardPage() {
     const { user, loading, signOut, isAdmin } = useAuthStore()
     const router = useRouter()
+    const { users, loading: usersLoading, error: usersError } = useUsersStore()
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -94,6 +96,29 @@ export default function DashboardPage() {
                                     <p className="text-sm text-muted-foreground">
                                         Last Sign In: {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'N/A'}
                                     </p>
+                                </div>
+
+                                <div className="pt-4 border-t">
+                                    <h3 className="font-semibold">All Users (temporary)</h3>
+                                    {usersLoading && (
+                                        <p className="text-sm text-muted-foreground">Loading users…</p>
+                                    )}
+                                    {usersError && (
+                                        <p className="text-sm text-red-600">{usersError}</p>
+                                    )}
+                                    {!usersLoading && !usersError && (
+                                        <div className="text-sm">
+                                            <p className="text-muted-foreground mb-2">Total: {users.length}</p>
+                                            <ul className="max-h-64 overflow-auto space-y-1">
+                                                {users.map((u) => (
+                                                    <li key={u.id} className="flex justify-between border-b pb-1">
+                                                        <span className="font-mono text-xs">{u.id}</span>
+                                                        <span>{u.email ?? '—'}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
