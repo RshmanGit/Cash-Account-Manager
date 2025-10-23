@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminClient, requireAdmin } from "@/lib/server/auth";
+import {
+  getAdminClient,
+  requireAdmin,
+  requireAuth,
+  isAdminEmail,
+} from "@/lib/server/auth";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const adminUser = await requireAdmin(request);
-  if (adminUser instanceof NextResponse) return adminUser;
+  // Allow any authenticated user; if not admin, require membership in this account
+  const authUser = await requireAuth(request);
+  if (authUser instanceof NextResponse) return authUser;
 
   const admin = getAdminClient();
   const { id } = await params;
@@ -16,6 +22,29 @@ export async function GET(
       { error: "Invalid id" },
       { status: 400, headers: { "Cache-Control": "no-store" } }
     );
+  }
+
+  // If not admin, verify membership for this account
+  const adminEmail = isAdminEmail(authUser.email);
+  if (!adminEmail) {
+    const { data: memberRows, error: memberError } = await admin
+      .from("account-member")
+      .select("uid")
+      .eq("account_id", idParam)
+      .eq("uid", authUser.id)
+      .limit(1);
+    if (memberError)
+      return NextResponse.json(
+        { error: memberError.message },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    const isMember = (memberRows ?? []).length > 0;
+    if (!isMember) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
   }
 
   const { data, error } = await admin
