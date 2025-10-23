@@ -3,11 +3,21 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
+const ADMIN_EMAILS = Object.freeze(
+  (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+const isEmailAdmin = (email?: string | null) =>
+  !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+
 interface AuthState {
   user: User | null;
   session: Session | null;
   loading: boolean;
   error: string | null;
+  isAdmin: boolean;
 }
 
 interface AuthActions {
@@ -29,6 +39,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   session: null,
   loading: true,
   error: null,
+  isAdmin: false,
 
   // Actions
   signIn: async (email: string, password: string) => {
@@ -61,6 +72,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({
         user: data.user,
         session: data.session,
+        isAdmin: isEmailAdmin(data.user?.email ?? null),
         loading: false,
         error: null,
       });
@@ -101,6 +113,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({
         user: null,
         session: null,
+        isAdmin: false,
         loading: false,
         error: null,
       });
@@ -145,6 +158,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({
         user: session?.user ?? null,
         session,
+        isAdmin: isEmailAdmin(session?.user?.email ?? null),
         loading: false,
         error: null,
       });
@@ -163,7 +177,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   setUser: (user: User | null) => {
     console.log("Auth store - Setting user:", user);
-    set({ user });
+    set({ user, isAdmin: isEmailAdmin(user?.email ?? null) });
   },
   setSession: (session: Session | null) => set({ session }),
   setLoading: (loading: boolean) => set({ loading }),

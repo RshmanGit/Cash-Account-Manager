@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner'
 
 export default function DashboardPage() {
-    const { user, loading, signOut } = useAuthStore()
+    const { user, loading, signOut, isAdmin } = useAuthStore()
     const router = useRouter()
 
     // Redirect if not authenticated
@@ -57,7 +57,13 @@ export default function DashboardPage() {
             <div className="container mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold">Dashboard</h1>
+                        <h1 className="text-3xl font-bold">Dashboard
+                            {isAdmin && (
+                                <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                                    Admin
+                                </span>
+                            )}
+                        </h1>
                         <p className="text-muted-foreground">
                             Welcome back, {user.email}
                         </p>
