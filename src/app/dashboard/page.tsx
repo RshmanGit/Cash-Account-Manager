@@ -1,17 +1,22 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useUsersStore } from '@/store/usersStore'
+import { AccountsTable } from '@/components/accounts/AccountsTable'
+import { AccountFormModal } from '@/components/accounts/AccountFormModal'
+import { useAccountsStore } from '@/store/accountsStore'
 
 export default function DashboardPage() {
     const { user, loading, signOut, isAdmin } = useAuthStore()
     const router = useRouter()
     const { users, loading: usersLoading, error: usersError } = useUsersStore()
+    const { editing, setEditing } = useAccountsStore()
+    const [open, setOpen] = useState(false)
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -78,53 +83,16 @@ export default function DashboardPage() {
                 <div className="grid gap-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Welcome to Your Dashboard</CardTitle>
-                            <CardDescription>
-                                This is your protected dashboard area. You're successfully authenticated!
-                            </CardDescription>
+                            <CardTitle>Accounts</CardTitle>
+                            <CardDescription>Manage and view your accounts</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="font-semibold">User Information</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Email: {user.email}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        User ID: {user.id}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Last Sign In: {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'N/A'}
-                                    </p>
-                                </div>
-
-                                <div className="pt-4 border-t">
-                                    <h3 className="font-semibold">All Users (temporary)</h3>
-                                    {usersLoading && (
-                                        <p className="text-sm text-muted-foreground">Loading users…</p>
-                                    )}
-                                    {usersError && (
-                                        <p className="text-sm text-red-600">{usersError}</p>
-                                    )}
-                                    {!usersLoading && !usersError && (
-                                        <div className="text-sm">
-                                            <p className="text-muted-foreground mb-2">Total: {users.length}</p>
-                                            <ul className="max-h-64 overflow-auto space-y-1">
-                                                {users.map((u) => (
-                                                    <li key={u.id} className="flex justify-between border-b pb-1">
-                                                        <span className="font-mono text-xs">{u.id}</span>
-                                                        <span>{u.email ?? '—'}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <AccountsTable onCreate={() => setOpen(true)} onEdit={(item) => { setEditing(item); setOpen(true); }} />
                         </CardContent>
                     </Card>
                 </div>
             </div>
+            <AccountFormModal open={open} onOpenChange={(o) => { if (!o) setEditing(null); setOpen(o); }} editing={editing ?? undefined} />
         </div>
     )
 }
