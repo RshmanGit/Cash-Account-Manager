@@ -150,15 +150,17 @@ export function TransactionsTable({ accountId }: Props) {
             <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Transactions</h3>
                 {canCreate && (
-                    <Button onClick={() => { setEditing(null); setOpen(true); }} className="bg-green-600 text-white hover:bg-green-700">
-                        Add transaction
+                    <Button onClick={() => { setEditing(null); setOpen(true); }} className="bg-green-600 text-white hover:bg-green-700 touch-manipulation">
+                        <span className="hidden sm:inline">Add transaction</span>
+                        <span className="sm:hidden">Add</span>
                     </Button>
                 )}
             </div>
 
             {error && <div className="text-sm text-red-600">{error}</div>}
 
-            <div className="border rounded-md overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block border rounded-md overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                         <tr>
@@ -212,6 +214,75 @@ export function TransactionsTable({ accountId }: Props) {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+                {loading && items.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        Loading...
+                    </div>
+                )}
+                {!loading && items.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        No transactions found
+                    </div>
+                )}
+                {items.map((row) => {
+                    const amountValue = Number(row.amount);
+                    const isDeposit = amountValue >= 0;
+                    return (
+                        <div
+                            key={row.id}
+                            className="border rounded-lg p-4 bg-card hover:bg-muted/40 transition-colors"
+                        >
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-base mb-1">{row.title}</h4>
+                                    {row.description && (
+                                        <p className="text-sm text-muted-foreground mb-2">{row.description}</p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                        {new Date(row.transaction_date_time).toLocaleString(undefined, { timeZone: 'Asia/Kolkata' })}
+                                    </p>
+                                </div>
+                                {isAdmin && (
+                                    <div className="flex gap-1 shrink-0">
+                                        <button
+                                            onClick={() => { setEditing(row); setOpen(true); }}
+                                            className="p-2 rounded-md hover:bg-blue-50 text-blue-600 hover:text-blue-700 transition-colors touch-manipulation"
+                                            aria-label="Edit transaction"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => onDelete(row)}
+                                            className="p-2 rounded-md hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors touch-manipulation"
+                                            aria-label="Delete transaction"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center justify-between pt-3 border-t">
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Amount</p>
+                                    <p className={`text-lg font-semibold ${isDeposit ? "text-green-600" : "text-red-600"}`}>
+                                        {isDeposit ? "+" : "-"}
+                                        {Math.abs(amountValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-muted-foreground mb-1">Balance</p>
+                                    <p className="text-lg font-semibold">
+                                        {Number(row.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             <div ref={sentinelRef} />
