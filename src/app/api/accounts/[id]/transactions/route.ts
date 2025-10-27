@@ -3,7 +3,7 @@ import { getAdminClient, requireAuth, isAdminEmail } from "@/lib/server/auth";
 
 type TransactionRow = {
   id: number;
-  created_at: string;
+  transaction_date_time: string;
   account_id: number;
   created_by: string;
   amount: string | number;
@@ -65,11 +65,11 @@ export async function GET(
   const { data, error, count } = await admin
     .from("transaction")
     .select(
-      "id, created_at, account_id, created_by, amount, balance, title, description",
+      "id, transaction_date_time, account_id, created_by, amount, balance, title, description",
       { count: "exact" }
     )
     .eq("account_id", idParam)
-    .order("created_at", { ascending: false })
+    .order("transaction_date_time", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);
 
@@ -132,6 +132,7 @@ export async function POST(
     const description =
       body?.description == null ? null : String(body.description);
     const amountRaw = Number(body?.amount);
+    const rawDate = body?.transaction_date_time as unknown;
     if (!title || title.length < 3 || title.length > 120)
       return NextResponse.json(
         { error: "Title must be 3-120 characters" },
@@ -143,45 +144,55 @@ export async function POST(
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
 
-    // Compute new balance based on latest transaction
-    const { data: latest, error: latestError } = await admin
-      .from("transaction")
-      .select("id,balance")
-      .eq("account_id", idParam)
-      .order("id", { ascending: false })
-      .limit(1)
-      .single();
-    if (latestError && latestError.code !== "PGRST116") {
-      // PGRST116: No rows found
-      return NextResponse.json(
-        { error: latestError.message },
-        { status: 500, headers: { "Cache-Control": "no-store" } }
-      );
+    // Parse/resolve transaction_date_time (IST default)
+    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+    function isIsoWithZone(v: unknown): v is string {
+      return typeof v === "string" && /[zZ]|[+-]\d{2}:?\d{2}$/.test(v);
     }
-    const prevBalance = Number(latest?.balance ?? 0) || 0;
-    const newBalance = prevBalance + amountRaw;
-    if (!Number.isFinite(newBalance))
+    function isNaiveLocal(v: unknown): v is string {
+      return typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v);
+    }
+    function istLocalToUtcIso(local: string): string {
+      const [datePart, timePart] = local.split("T");
+      const [y, m, d] = datePart.split("-").map(Number);
+      const [hh, mm] = timePart.split(":").map(Number);
+      const ist = new Date(Date.UTC(y, m - 1, d, hh, mm));
+      const utc = new Date(ist.getTime() - IST_OFFSET_MS);
+      return utc.toISOString();
+    }
+    function nowIstUtcIso(): string {
+      const now = new Date();
+      const utc = new Date(now.getTime());
+      return utc.toISOString();
+    }
+
+    let txDateIso: string;
+    if (isIsoWithZone(rawDate)) {
+      txDateIso = new Date(String(rawDate)).toISOString();
+    } else if (isNaiveLocal(rawDate)) {
+      txDateIso = istLocalToUtcIso(String(rawDate));
+    } else if (rawDate == null) {
+      // default: now, but DB default already applies; we set explicitly
+      txDateIso = nowIstUtcIso();
+    } else {
       return NextResponse.json(
-        { error: "Computed balance is invalid" },
+        { error: "Invalid transaction_date_time format" },
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
+    }
 
-    const insertPayload = {
-      account_id: Number(idParam),
-      created_by: user.id,
-      amount: amountRaw,
-      balance: newBalance,
-      title,
-      description,
-    };
-
-    const { data, error } = await admin
-      .from("transaction")
-      .insert(insertPayload)
-      .select(
-        "id, created_at, account_id, created_by, amount, balance, title, description"
-      )
-      .single();
+    // Call RPC: create and recompute balances (allows back-dates)
+    const { data, error } = await admin.rpc(
+      "fn_transaction_create_and_recompute",
+      {
+        p_account_id: Number(idParam),
+        p_created_by: user.id,
+        p_title: title,
+        p_description: description,
+        p_amount: amountRaw,
+        p_transaction_date_time: txDateIso,
+      }
+    );
 
     if (error)
       return NextResponse.json(

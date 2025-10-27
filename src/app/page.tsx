@@ -43,15 +43,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+        <CardHeader className="text-center px-4 md:px-6">
+          <CardTitle className="text-xl md:text-2xl font-bold">Welcome Back</CardTitle>
           <CardDescription>
             Sign in to your account to continue
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 md:px-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
@@ -64,6 +64,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="touch-manipulation"
               />
             </div>
             <div className="space-y-2">
@@ -77,9 +78,10 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="touch-manipulation"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full touch-manipulation" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
