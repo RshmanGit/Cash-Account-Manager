@@ -19,11 +19,12 @@ export async function PATCH(
     );
   }
 
-  // Ensure target is latest transaction for this account
+  // Ensure target is latest transaction for this account by transaction_date_time desc, id desc
   const { data: latest, error: latestErr } = await admin
     .from("transaction")
-    .select("id, amount")
+    .select("id, amount, transaction_date_time")
     .eq("account_id", idParam)
+    .order("transaction_date_time", { ascending: false })
     .order("id", { ascending: false })
     .limit(1)
     .single();
@@ -42,6 +43,21 @@ export async function PATCH(
   try {
     const body = await request.json().catch(() => ({} as any));
     const patch: Record<string, unknown> = {};
+    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+    function isIsoWithZone(v: unknown): v is string {
+      return typeof v === "string" && /[zZ]|[+-]\d{2}:?\d{2}$/.test(v);
+    }
+    function isNaiveLocal(v: unknown): v is string {
+      return typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v);
+    }
+    function istLocalToUtcIso(local: string): string {
+      const [datePart, timePart] = local.split("T");
+      const [y, m, d] = datePart.split("-").map(Number);
+      const [hh, mm] = timePart.split(":").map(Number);
+      const ist = new Date(Date.UTC(y, m - 1, d, hh, mm));
+      const utc = new Date(ist.getTime() - IST_OFFSET_MS);
+      return utc.toISOString();
+    }
     if (typeof body.title === "string") {
       const t = body.title.trim();
       if (!t || t.length < 3 || t.length > 120) {
@@ -56,6 +72,19 @@ export async function PATCH(
       patch.description =
         body.description == null ? null : String(body.description);
     }
+    if (body.transaction_date_time != null) {
+      const raw = body.transaction_date_time as unknown;
+      if (isIsoWithZone(raw)) {
+        patch.transaction_date_time = new Date(String(raw)).toISOString();
+      } else if (isNaiveLocal(raw)) {
+        patch.transaction_date_time = istLocalToUtcIso(String(raw));
+      } else {
+        return NextResponse.json(
+          { error: "Invalid transaction_date_time format" },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+    }
     let amount: number | undefined = undefined;
     if (body.amount != null) {
       const a = Number(body.amount);
@@ -67,13 +96,18 @@ export async function PATCH(
       amount = a;
     }
 
-    // Recompute balance relative to second-latest
+    // Recompute balance relative to immediate previous by transaction_date_time
     if (amount != null) {
+      // Determine effective date for this patch (provided or keep current latest.transaction_date_time)
+      const effectiveIso =
+        (patch.transaction_date_time as string | undefined) ??
+        latest.transaction_date_time;
       const { data: prev, error: prevErr } = await admin
         .from("transaction")
-        .select("id, balance")
+        .select("id, balance, transaction_date_time")
         .eq("account_id", idParam)
-        .lt("id", txIdParam)
+        .lt("transaction_date_time", effectiveIso)
+        .order("transaction_date_time", { ascending: false })
         .order("id", { ascending: false })
         .limit(1)
         .single();
@@ -106,7 +140,7 @@ export async function PATCH(
       .eq("id", txIdParam)
       .eq("account_id", idParam)
       .select(
-        "id, created_at, account_id, created_by, amount, balance, title, description"
+        "id, transaction_date_time, account_id, created_by, amount, balance, title, description"
       )
       .single();
     if (error)
@@ -144,8 +178,9 @@ export async function DELETE(
 
   const { data: latest, error: latestErr } = await admin
     .from("transaction")
-    .select("id")
+    .select("id, transaction_date_time")
     .eq("account_id", idParam)
+    .order("transaction_date_time", { ascending: false })
     .order("id", { ascending: false })
     .limit(1)
     .single();

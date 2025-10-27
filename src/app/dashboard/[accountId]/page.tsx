@@ -254,7 +254,7 @@ export default function AccountDetailPage({ params }: Props) {
                     </CardHeader>
                     <CardContent className="space-y-2">
                         <div className="text-sm text-muted-foreground">
-                            Created at: {account ? new Date(account.created_at).toLocaleString() : "—"}
+                            Created at: {account ? new Date(account.created_at).toLocaleString(undefined, { timeZone: 'Asia/Kolkata' }) : "—"}
                         </div>
                     </CardContent>
                 </Card>

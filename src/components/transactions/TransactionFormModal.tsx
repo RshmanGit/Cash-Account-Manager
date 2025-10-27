@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 export type TransactionRow = {
     id: number;
-    created_at: string;
+    transaction_date_time: string;
     account_id: number;
     created_by: string;
     amount: number | string;
@@ -35,6 +35,30 @@ export function TransactionFormModal({ open, onOpenChange, accountId, editing, o
     const [type, setType] = React.useState<"DEPOSIT" | "WITHDRAW">("DEPOSIT");
     const [amount, setAmount] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
+    const [dateTimeLocal, setDateTimeLocal] = React.useState("");
+
+    function pad2(n: number) { return n.toString().padStart(2, "0"); }
+    function toLocalInputFromDate(d: Date) {
+        const y = d.getFullYear();
+        const m = pad2(d.getMonth() + 1);
+        const day = pad2(d.getDate());
+        const h = pad2(d.getHours());
+        const min = pad2(d.getMinutes());
+        return `${y}-${m}-${day}T${h}:${min}`;
+    }
+    function nowLocalInput(): string {
+        return toLocalInputFromDate(new Date());
+    }
+    function isoToLocalInput(iso: string): string {
+        return toLocalInputFromDate(new Date(iso));
+    }
+    function localInputToUtcIso(local: string): string {
+        const [datePart, timePart] = local.split("T");
+        const [y, m, d] = datePart.split("-").map((x) => Number(x));
+        const [hh, mm] = timePart.split(":").map((x) => Number(x));
+        const localDate = new Date(y, m - 1, d, hh, mm);
+        return localDate.toISOString();
+    }
 
     React.useEffect(() => {
         if (editing) {
@@ -43,11 +67,13 @@ export function TransactionFormModal({ open, onOpenChange, accountId, editing, o
             const amt = Number(editing.amount);
             setType(amt >= 0 ? "DEPOSIT" : "WITHDRAW");
             setAmount(String(Math.abs(amt)));
+            setDateTimeLocal(isoToLocalInput(editing.transaction_date_time));
         } else {
             setTitle("");
             setDescription("");
             setType("DEPOSIT");
             setAmount("");
+            setDateTimeLocal(nowLocalInput());
         }
     }, [editing, open]);
 
@@ -74,9 +100,10 @@ export function TransactionFormModal({ open, onOpenChange, accountId, editing, o
                 ? `/api/accounts/${accountId}/transactions/${editing.id}`
                 : `/api/accounts/${accountId}/transactions`;
             const method = editing ? "PATCH" : "POST";
+            const transaction_date_time = localInputToUtcIso(dateTimeLocal);
             const payload = editing
-                ? { title: t, description: description || null, amount: signed }
-                : { title: t, description: description || null, amount: signed };
+                ? { title: t, description: description || null, amount: signed, transaction_date_time }
+                : { title: t, description: description || null, amount: signed, transaction_date_time };
             const res = await fetch(url, {
                 method,
                 headers: {
@@ -127,6 +154,10 @@ export function TransactionFormModal({ open, onOpenChange, accountId, editing, o
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Description</label>
                     <Input value={description ?? ""} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" maxLength={500} />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Transaction date & time (IST)</label>
+                    <Input type="datetime-local" value={dateTimeLocal} onChange={(e) => setDateTimeLocal(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                     <label className="text-sm font-medium">Type</label>

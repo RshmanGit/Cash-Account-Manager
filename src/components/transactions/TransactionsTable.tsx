@@ -182,7 +182,7 @@ export function TransactionsTable({ accountId }: Props) {
                         )}
                         {items.map((row, idx) => (
                             <tr key={row.id} className="hover:bg-muted/40">
-                                <td className="px-3 py-2">{new Date(row.created_at).toLocaleString()}</td>
+                                <td className="px-3 py-2">{new Date(row.transaction_date_time).toLocaleString(undefined, { timeZone: 'Asia/Kolkata' })}</td>
                                 <td className="px-3 py-2">{row.title}</td>
                                 <td className="px-3 py-2 text-muted-foreground">{row.description ?? "—"}</td>
                                 <td className="px-3 py-2 text-right">{formatAmount(row.amount)}</td>
