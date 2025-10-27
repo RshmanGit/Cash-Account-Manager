@@ -167,14 +167,14 @@ export function TransactionFormModal({ open, onOpenChange, accountId, editing, o
                             className={`px-3 py-1.5 text-sm rounded ${type === "DEPOSIT" ? "bg-green-600 text-white" : "hover:bg-green-600/10 text-foreground"}`}
                             onClick={() => setType("DEPOSIT")}
                         >
-                            Deposit
+                            Cash-in
                         </button>
                         <button
                             type="button"
                             className={`px-3 py-1.5 text-sm rounded ${type === "WITHDRAW" ? "bg-red-600 text-white" : "hover:bg-red-600/10 text-foreground"}`}
                             onClick={() => setType("WITHDRAW")}
                         >
-                            Withdraw
+                            Cash-out
                         </button>
                     </div>
                 </div>
