@@ -10,6 +10,7 @@ import { useUsersStore } from '@/store/usersStore'
 import { AccountsTable } from '@/components/accounts/AccountsTable'
 import { AccountFormModal } from '@/components/accounts/AccountFormModal'
 import { useAccountsStore } from '@/store/accountsStore'
+import { LogOut } from 'lucide-react'
 
 export default function DashboardPage() {
     const { user, loading, signOut, isAdmin } = useAuthStore()
@@ -61,32 +62,33 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="container mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold">Dashboard
+            <div className="container mx-auto px-4 py-4 md:py-8">
+                <div className="flex justify-between items-start md:items-center mb-6 md:mb-8 gap-3">
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-2xl md:text-3xl font-bold truncate">Dashboard
                             {isAdmin && (
                                 <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                                     Admin
                                 </span>
                             )}
                         </h1>
-                        <p className="text-muted-foreground">
+                        <p className="text-sm md:text-base text-muted-foreground truncate">
                             Welcome back, {user.email}
                         </p>
                     </div>
-                    <Button onClick={handleSignOut} variant="outline">
-                        Sign Out
+                    <Button onClick={handleSignOut} variant="outline" size="default" className="touch-manipulation shrink-0">
+                        <LogOut className="h-4 w-4 md:mr-2" />
+                        <span className="hidden md:inline">Sign Out</span>
                     </Button>
                 </div>
 
-                <div className="grid gap-6">
+                <div className="grid gap-4 md:gap-6">
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="px-4 md:px-6">
                             <CardTitle>Accounts</CardTitle>
                             <CardDescription>Manage and view your accounts</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="px-4 md:px-6">
                             <AccountsTable onCreate={() => setOpen(true)} onEdit={(item) => { setEditing(item); setOpen(true); }} />
                         </CardContent>
                     </Card>
