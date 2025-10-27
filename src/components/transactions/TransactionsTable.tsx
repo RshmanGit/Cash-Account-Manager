@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
+import { Pencil, Trash2 } from "lucide-react";
 import { TransactionFormModal, type TransactionRow } from "./TransactionFormModal";
 
 interface Props {
@@ -188,10 +189,22 @@ export function TransactionsTable({ accountId }: Props) {
                                 <td className="px-3 py-2 text-right">{formatAmount(row.amount)}</td>
                                 <td className="px-3 py-2 text-right">{Number(row.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                 <td className="px-3 py-2 text-right">
-                                    {isAdmin && latestId === row.id ? (
-                                        <div className="flex justify-end gap-2">
-                                            <Button size="sm" variant="outline" onClick={() => { setEditing(row); setOpen(true); }}>Edit</Button>
-                                            <Button size="sm" variant="destructive" onClick={() => onDelete(row)}>Delete</Button>
+                                    {isAdmin ? (
+                                        <div className="flex justify-end gap-1">
+                                            <button
+                                                onClick={() => { setEditing(row); setOpen(true); }}
+                                                className="p-1.5 rounded hover:bg-blue-50 text-blue-600 hover:text-blue-700 transition-colors"
+                                                aria-label="Edit transaction"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => onDelete(row)}
+                                                className="p-1.5 rounded hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors"
+                                                aria-label="Delete transaction"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     ) : null}
                                 </td>

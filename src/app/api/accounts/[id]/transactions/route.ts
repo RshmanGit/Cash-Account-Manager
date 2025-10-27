@@ -181,62 +181,18 @@ export async function POST(
       );
     }
 
-    // Compute new balance based on latest transaction by time
-    const { data: latest, error: latestError } = await admin
-      .from("transaction")
-      .select("id,balance,transaction_date_time")
-      .eq("account_id", idParam)
-      .order("transaction_date_time", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(1)
-      .single();
-    if (latestError && latestError.code !== "PGRST116") {
-      // PGRST116: No rows found
-      return NextResponse.json(
-        { error: latestError.message },
-        { status: 500, headers: { "Cache-Control": "no-store" } }
-      );
-    }
-    const prevBalance = Number(latest?.balance ?? 0) || 0;
-    const newBalance = prevBalance + amountRaw;
-    if (!Number.isFinite(newBalance))
-      return NextResponse.json(
-        { error: "Computed balance is invalid" },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
-      );
-
-    // Enforce: cannot create with transaction_date_time earlier than latest
-    if (latest && latest.transaction_date_time) {
-      const latestTime = new Date(latest.transaction_date_time).getTime();
-      const newTime = new Date(txDateIso).getTime();
-      if (newTime < latestTime) {
-        return NextResponse.json(
-          {
-            error:
-              "Cannot create back-dated transaction; please use a later date/time",
-          },
-          { status: 400, headers: { "Cache-Control": "no-store" } }
-        );
+    // Call RPC: create and recompute balances (allows back-dates)
+    const { data, error } = await admin.rpc(
+      "fn_transaction_create_and_recompute",
+      {
+        p_account_id: Number(idParam),
+        p_created_by: user.id,
+        p_title: title,
+        p_description: description,
+        p_amount: amountRaw,
+        p_transaction_date_time: txDateIso,
       }
-    }
-
-    const insertPayload = {
-      account_id: Number(idParam),
-      created_by: user.id,
-      amount: amountRaw,
-      balance: newBalance,
-      title,
-      description,
-      transaction_date_time: txDateIso,
-    };
-
-    const { data, error } = await admin
-      .from("transaction")
-      .insert(insertPayload)
-      .select(
-        "id, transaction_date_time, account_id, created_by, amount, balance, title, description"
-      )
-      .single();
+    );
 
     if (error)
       return NextResponse.json(
